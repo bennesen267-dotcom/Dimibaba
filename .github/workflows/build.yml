@@ -118,7 +118,8 @@ jobs:
 
                   WorldRenderEvents.AFTER_ENTITIES.register(context -> {
                       if (mc.world == null || mc.player == null) return;
-                      for (com.zefari.client.modules.Module m : modules) if (m.enabled && m instanceof com.zefari.client.modules.Module.RenderModule r) r.onRender(context.matrixStack(), context.tickDelta);
+                      float tickDelta = mc.getTickDelta();
+                      for (com.zefari.client.modules.Module m : modules) if (m.enabled && m instanceof com.zefari.client.modules.Module.RenderModule r) r.onRender(context.matrixStack(), tickDelta);
                   });
 
                   HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
