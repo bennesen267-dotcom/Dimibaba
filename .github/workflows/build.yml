@@ -431,7 +431,6 @@ jobs:
           import com.zefari.client.ZefariClient;
           import net.minecraft.client.render.BackgroundRenderer;
           import net.minecraft.client.render.Camera;
-          import net.minecraft.client.render.Fog;
           import org.joml.Vector4f;
           import org.spongepowered.asm.mixin.Mixin;
           import org.spongepowered.asm.mixin.injection.At;
