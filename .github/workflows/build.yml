@@ -263,7 +263,7 @@ jobs:
                           BufferBuilder bb = Tessellator.getInstance().begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
                           bb.vertex(matrices.peek().getPositionMatrix(), px, -0.5f, pz).color(color);
                           bb.vertex(matrices.peek().getPositionMatrix(), px*1.5f, 1.0f, pz*1.5f).color(color);
-                          Tessellator.getInstance().draw();
+                          net.minecraft.client.render.BufferRenderer.drawWithGlobalProgram(bb.end());
                       }
                   } else if (mode.modeValue.equals("GhostV2")) {
                       for (int i = 0; i < 4; i++) {
@@ -272,7 +272,7 @@ jobs:
                               float a = (float)Math.toRadians(j);
                               bb.vertex(matrices.peek().getPositionMatrix(), (float)Math.cos(a)*(0.6f+i*0.2f), i*0.3f, (float)Math.sin(a)*(0.6f+i*0.2f)).color(color);
                           }
-                          Tessellator.getInstance().draw();
+                          net.minecraft.client.render.BufferRenderer.drawWithGlobalProgram(bb.end());
                       }
                   } else if (mode.modeValue.equals("Nurik")) {
                       for (int i = 0; i < 3; i++) {
@@ -281,7 +281,7 @@ jobs:
                           BufferBuilder bb = Tessellator.getInstance().begin(VertexFormat.DrawMode.DEBUG_LINES, VertexFormats.POSITION_COLOR);
                           bb.vertex(matrices.peek().getPositionMatrix(), px, 1.5f, pz).color(color);
                           bb.vertex(matrices.peek().getPositionMatrix(), px, -0.5f, pz).color(color);
-                          Tessellator.getInstance().draw();
+                          net.minecraft.client.render.BufferRenderer.drawWithGlobalProgram(bb.end());
                       }
                   }
                   matrices.pop();
