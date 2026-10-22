@@ -118,7 +118,7 @@ jobs:
 
                   WorldRenderEvents.AFTER_ENTITIES.register(context -> {
                       if (mc.world == null || mc.player == null) return;
-                      for (com.zefari.client.modules.Module m : modules) if (m.enabled && m instanceof com.zefari.client.modules.Module.RenderModule r) r.onRender(context.matrixStack(), context.tickDelta());
+                      for (com.zefari.client.modules.Module m : modules) if (m.enabled && m instanceof com.zefari.client.modules.Module.RenderModule r) r.onRender(context.matrixStack(), context.tickDelta);
                   });
 
                   HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
@@ -430,7 +430,6 @@ jobs:
           package com.zefari.client.mixin;
           import com.zefari.client.ZefariClient;
           import net.minecraft.client.render.BackgroundRenderer;
-          import net.minecraft.client.render.Camera;
           import org.joml.Vector4f;
           import org.spongepowered.asm.mixin.Mixin;
           import org.spongepowered.asm.mixin.injection.At;
@@ -440,7 +439,7 @@ jobs:
           @Mixin(BackgroundRenderer.class)
           public class BackgroundRendererMixin {
               @Inject(method = "getFogColor", at = @At("RETURN"), cancellable = true)
-              private static void onGetFogColor(Camera camera, float tickDelta, net.minecraft.world.World world, int maxDistance, CallbackInfoReturnable<Vector4f> cir) {
+              private static void onGetFogColor(CallbackInfoReturnable<Vector4f> cir) {
                   var m = ZefariClient.modules.stream().filter(mod -> mod.name.equals("WorldTweaks") && mod.enabled).findFirst().orElse(null);
                   if (m != null) {
                       var c = ZefariClient.themeColor;
