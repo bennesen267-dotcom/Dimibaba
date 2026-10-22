@@ -13,7 +13,7 @@ jobs:
 
       - name: Create project
         run: |
-          mkdir -p src/main/java/com/zefari/client/modules
+          mkdir -p src/main/java/com/zefari/client/modules src/main/resources
 
           cat > build.gradle <<'EOF'
           plugins { id 'fabric-loom' version '1.9-SNAPSHOT' }
