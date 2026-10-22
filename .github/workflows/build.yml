@@ -13,7 +13,7 @@ jobs:
 
       - name: Create project
         run: |
-          mkdir -p src/main/java/com/zefari/client/mixin src/main/java/com/zefari/client/modules src/main/resources/assets/zefari/shaders
+          mkdir -p src/main/java/com/zefari/client/modules
 
           cat > build.gradle <<'EOF'
           plugins { id 'fabric-loom' version '1.9-SNAPSHOT' }
@@ -40,30 +40,7 @@ jobs:
           {
             "schemaVersion": 1, "id": "zefari", "version": "1.0.0", "name": "Zefari Client", "environment": "client",
             "entrypoints": { "client": ["com.zefari.client.ZefariClient"] },
-            "mixins": ["zefari.mixins.json"],
             "depends": { "fabricloader": ">=0.16.0", "fabric-api": "*", "minecraft": "~1.21.1", "java": ">=21" }
-          }
-          EOF
-
-          cat > src/main/resources/zefari.mixins.json <<'EOF'
-          {
-            "required": true, "package": "com.zefari.client.mixin", "compatibilityLevel": "JAVA_21",
-            "client": ["HeldItemRendererMixin", "BackgroundRendererMixin"],
-            "injectors": { "defaultRequire": 1 }
-          }
-          EOF
-
-          cat > src/main/resources/assets/zefari/shaders/glow.frag <<'EOF'
-          #version 150
-          uniform sampler2D DiffuseSampler;
-          uniform float Time;
-          uniform vec4 Color;
-          in vec2 texCoord;
-          out vec4 fragColor;
-          void main() {
-              vec4 tex = texture(DiffuseSampler, texCoord);
-              float pulse = (sin(Time * 5.0) + 1.0) * 0.5;
-              fragColor = mix(tex, Color, pulse * 0.3);
           }
           EOF
 
@@ -101,8 +78,6 @@ jobs:
                   modules.add(new Aura());
                   modules.add(new TargetESP());
                   modules.add(new ElytraHelper());
-                  modules.add(new WorldTweaks());
-                  modules.add(new ItemFov());
 
                   ClientTickEvents.END_CLIENT_TICK.register(client -> {
                       while (guiKey.wasPressed()) client.setScreen(gui);
@@ -118,8 +93,12 @@ jobs:
 
                   WorldRenderEvents.AFTER_ENTITIES.register(context -> {
                       if (mc.world == null || mc.player == null) return;
-                      float tickDelta = mc.getTickDelta();
-                      for (com.zefari.client.modules.Module m : modules) if (m.enabled && m instanceof com.zefari.client.modules.Module.RenderModule r) r.onRender(context.matrixStack(), tickDelta);
+                      float tickDelta = mc.getRenderTickCounter().getTickDelta(true);
+                      for (com.zefari.client.modules.Module m : modules) {
+                          if (m.enabled && m instanceof com.zefari.client.modules.Module.RenderModule r) {
+                              r.onRender(context.matrixStack(), tickDelta);
+                          }
+                      }
                   });
 
                   HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
@@ -320,24 +299,6 @@ jobs:
           }
           EOF
 
-          cat > src/main/java/com/zefari/client/modules/ItemFov.java <<'EOF'
-          package com.zefari.client.modules;
-          public class ItemFov extends Module {
-              public Setting fov = new Setting("FOV", 150f, 30f, 200f);
-              public ItemFov() { super("ItemFov", "Render"); settings.add(fov); }
-              @Override public void onTick() {}
-          }
-          EOF
-
-          cat > src/main/java/com/zefari/client/modules/WorldTweaks.java <<'EOF'
-          package com.zefari.client.modules;
-          public class WorldTweaks extends Module {
-              public Setting color = new Setting("Color", new String[]{"Red", "Blue", "Green", "Purple"});
-              public WorldTweaks() { super("WorldTweaks", "Render"); settings.add(color); }
-              @Override public void onTick() {}
-          }
-          EOF
-
           cat > src/main/java/com/zefari/client/MainGui.java <<'EOF'
           package com.zefari.client;
           import net.minecraft.client.gui.DrawContext;
@@ -358,7 +319,7 @@ jobs:
                   ctx.fill(x, y, x + w, y + h, 0xFF101015);
                   ctx.fill(x, y, x + w, y + 25, ZefariClient.themeColor.getRGB() | 0xFF000000);
                   ctx.drawText(textRenderer, "ZEFARI", x + 10, y + 8, 0xFFFFFFFF, true);
-                  String[] cats = {"Combat", "Render", "Movement", "Misc", "Client"};
+                  String[] cats = {"Combat", "Render", "Misc"};
                   int cy = y + 35;
                   for (String c : cats) {
                       ctx.fill(x + 5, cy, x + 80, cy + 20, c.equals(selectedCat) ? 0xFF202025 : 0x00000000);
@@ -386,7 +347,7 @@ jobs:
               @Override public boolean mouseClicked(double mx, double my, int b) {
                   if (b == 0) {
                       if (mx >= x && mx <= x + 350 && my >= y && my <= y + 25) { dragX = (int)mx - x; dragY = (int)my - y; return true; }
-                      String[] cats = {"Combat", "Render", "Movement", "Misc", "Client"};
+                      String[] cats = {"Combat", "Render", "Misc"};
                       int cy = y + 35;
                       for (String c : cats) { if (mx >= x + 5 && mx <= x + 80 && my >= cy && my <= cy + 20) { selectedCat = c; return true; } cy += 22; }
                   }
@@ -398,62 +359,9 @@ jobs:
           }
           EOF
 
-          cat > src/main/java/com/zefari/client/mixin/HeldItemRendererMixin.java <<'EOF'
-          package com.zefari.client.mixin;
-          import com.zefari.client.ZefariClient;
-          import net.minecraft.client.render.item.HeldItemRenderer;
-          import net.minecraft.client.util.math.MatrixStack;
-          import org.spongepowered.asm.mixin.Mixin;
-          import org.spongepowered.asm.mixin.injection.At;
-          import org.spongepowered.asm.mixin.injection.Inject;
-          import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-          import net.minecraft.item.ItemStack;
-          import net.minecraft.item.SwordItem;
-          import net.minecraft.client.network.AbstractClientPlayerEntity;
-          import net.minecraft.util.Hand;
-          import net.minecraft.client.render.VertexConsumerProvider;
-
-          @Mixin(HeldItemRenderer.class)
-          public class HeldItemRendererMixin {
-              @Inject(method = "renderFirstPersonItem", at = @At("HEAD"))
-              private void onRenderItem(AbstractClientPlayerEntity player, float tickDelta, float pitch, Hand hand, float swingProgress, ItemStack item, float equipProgress, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, CallbackInfo ci) {
-                  var m = ZefariClient.modules.stream().filter(mod -> mod.name.equals("ItemFov") && mod.enabled).findFirst().orElse(null);
-                  if (m != null && item.getItem() instanceof SwordItem) {
-                      float scale = 1.0f + (m.settings.get(0).value / 100f);
-                      matrices.scale(scale, scale, scale);
-                      matrices.translate(0, 0, 0.5f);
-                  }
-              }
-          }
-          EOF
-          
-          cat > src/main/java/com/zefari/client/mixin/BackgroundRendererMixin.java <<'EOF'
-          package com.zefari.client.mixin;
-          import com.zefari.client.ZefariClient;
-          import net.minecraft.client.render.BackgroundRenderer;
-          import org.joml.Vector4f;
-          import org.spongepowered.asm.mixin.Mixin;
-          import org.spongepowered.asm.mixin.injection.At;
-          import org.spongepowered.asm.mixin.injection.Inject;
-          import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-          @Mixin(BackgroundRenderer.class)
-          public class BackgroundRendererMixin {
-              @Inject(method = "getFogColor", at = @At("RETURN"), cancellable = true)
-              private static void onGetFogColor(CallbackInfoReturnable<Vector4f> cir) {
-                  var m = ZefariClient.modules.stream().filter(mod -> mod.name.equals("WorldTweaks") && mod.enabled).findFirst().orElse(null);
-                  if (m != null) {
-                      var c = ZefariClient.themeColor;
-                      cir.setReturnValue(new Vector4f(c.getRed()/255f, c.getGreen()/255f, c.getBlue()/255f, 1f));
-                  }
-              }
-          }
-          EOF
-
           find . -name "*.java" -exec sed -i 's/^          //' {} \;
           find . -name "*.gradle" -exec sed -i 's/^          //' {} \;
           find . -name "*.json" -exec sed -i 's/^          //' {} \;
-          find . -name "*.frag" -exec sed -i 's/^          //' {} \;
 
       - name: Gradle wrapper
         run: gradle wrapper --gradle-version 8.11
